@@ -7,10 +7,15 @@ from itertools import product
 class Region:
     regions = list()
     chromDict = dict()
-    def __init__(self, chrom, start, end):
+    full_genome = str()
+    def __init__(self, chrom, start, end, label):
         self.chrom = chrom
         self.start = int(start)
         self.end = int(end)
+        self.label = str(label)
+
+
+
         self.size = self.end - self.start
         self.offset = 300 - self.size # range to look on either side of region
 
@@ -35,6 +40,9 @@ class Region:
         if self.intervals.empty == False: # confirm that intervals were found
             self.find_bounds()
             self.pull_gRNA()
+            self.gRNA_checks()
+
+        # sys.exit()
 
         Region.regions.append(self)
     def add_position(self, side, pam, index):
@@ -145,6 +153,41 @@ class Region:
         """add gRNA sequence to dataframe"""
         chrom = Region.chromDict[self.chrom]
         self.Guides['gRNA'] = self.Guides.apply(lambda x : chrom[x[2] : x[3]], axis = 1)
+    def gRNA_checks(self):
+        """list of statistics to gather about each gRNA"""
+        # GC content
+        self.Guides['GC'] = self.Guides.apply(self.GC, axis = 1)
+        # number of times a PAM sequence is found within the gRNA
+        self.Guides['n_PAMs'] = self.Guides.apply(self.num_subPAM, axis = 1)
+        # number of times the gRNA appears in the genome
+        self.Guides['g_Freq'] = self.Guides.apply(self.genomicFrequency, axis = 1)
+
+        print self.Guides
+
+    def GC(self, axis):
+        """calculate GC content"""
+        g = axis['gRNA']
+        return (g.count('C') + g.count('G')) / float(len(g))
+    def num_subPAM(self, axis):
+        """count number of PAM regions in gRNA"""
+        g = axis['gRNA']
+        PAMs = ['GG', 'CC']
+        num_subPAM = 0
+        for i in range(len(g)):
+            try:
+                twoMer = g[i] + g[i+1]
+                if twoMer in PAMs:
+                    num_subPAM += 1
+            except IndexError:
+                break
+        return num_subPAM
+    def genomicFrequency(self, axis):
+        """the number of times the gRNA appears in the genome"""
+        g = axis['gRNA']
+        return Region.full_genome.count(g)
+    def revGenomicFrequency(self, axis):
+        g = axis['gRNA']
+
 
 
 
@@ -182,16 +225,30 @@ def make_chrom_dict(genome_fn):
             continue
         chromDict[currentChrom].append(line)
     return join_lines(chromDict)
+def hash_genome(chromDict, k = 20):
+    """given a dictionary {chrom : genomic sequence}, create dictionary of all unique kmers in genome"""
+    uniqueKmers = dict()
 
+    for chrom in chromDict:
+        seq = chromDict[chrom]
+        for i in range(len(seq)):
+            kmer = seq[i:i+k]
+            if len(kmer) == k:
+                if k not in uniqueKmers:
+                    uniqueKmers[kmer] = 0
+                uniqueKmers[kmer] += 1
+    return uniqueKmers
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("-i", '--input', help="input genome", required=True)
-    p.add_argument('-b', '--bed', help='input bed file', required=True)
+    p.add_argument('-b', '--bed', help='input bed file (chrom, start, end, optional_label)', required=True)
     args = p.parse_args()
 
     Region.chromDict = make_chrom_dict(args.input)
-    [Region(b[0], b[1], b[2]) for b in parse_bed(args.bed)]
+    Region.full_genome = ' '.join([Region.chromDict[c] for c in Region.chromDict])
+
+    [Region(b[0], b[1], b[2], b[3]) for b in parse_bed(args.bed)]
 
 
 
