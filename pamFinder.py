@@ -27,14 +27,14 @@ class Region:
         self.intervals = pd.DataFrame()
         self.leftGuides = pd.DataFrame()      # left guide positions that pass filtering
         self.rightGuides = pd.DataFrame()     # right guide positions that pass filtering
+        self.Guides = pd.DataFrame()          # holds all unique left/right guides
 
 
         self.find_intervals()
+
         if self.intervals.empty == False: # confirm that intervals were found
             self.find_bounds()
-
-            print self.leftGuides
-            print self.rightGuides
+            self.pull_gRNA()
 
         # sys.exit()
 
@@ -125,17 +125,30 @@ class Region:
     def find_bounds(self):
         """create dataframes of boundaries of gRNA"""
 
-        # find boundaries, expand columns, rename to make sense
-        leftBounds = self.leftGuides.apply(self.boundFinder, axis = 1, result_type = 'expand').rename(columns = {0 : 'leftStart', 1 : 'leftEnd'})
-        rightBounds = self.rightGuides.apply(self.boundFinder, axis = 1, result_type = 'expand').rename(columns = {0 : 'rightStart', 1 : 'rightEnd'})
+        # find boundaries, expand columns, rename for joining later
+        leftBounds = self.leftGuides.apply(self.boundFinder, axis = 1, result_type = 'expand').rename(columns = {0 : 'start', 1 : 'end'})
+        rightBounds = self.rightGuides.apply(self.boundFinder, axis = 1, result_type = 'expand').rename(columns = {0 : 'start', 1 : 'end'})
 
         # join original dataframes with bounds
-        try:
-            self.leftGuides = self.leftGuides.join(leftBounds, how = 'outer')
-        except ValueError:
-            print self.intervals
-            print leftBounds
+        self.leftGuides = self.leftGuides.join(leftBounds, how = 'outer')
         self.rightGuides = self.rightGuides.join(rightBounds, how = 'outer')
+
+        # rename columns for larger Guide join
+        l = self.leftGuides.rename(columns = {'left' : 'pos', 'lPAM' : 'PAM'})
+        r = self.rightGuides.rename(columns = {'right' : 'pos', 'rPAM' : 'PAM'})
+
+        # make side identification
+        l['side'] = 'l'
+        r['side'] = 'r'
+
+        # create larger guides dataframe
+        self.Guides = l.append(r)
+
+
+
+
+    def pull_gRNA(self):
+        print self.Guides
 
 
 

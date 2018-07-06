@@ -54,4 +54,9 @@ combinations['size'] = combinations['right'] - combinations['left']
 ## return intervals less than 300
 intervals = combinations.loc[combinations['size'] <= 300].reset_index(drop=True)
 
-intervals
+leftSide['side'] = 'l'
+rightSide['side'] = 'r'
+l = leftSide.rename(columns = {'left' : 'pos', 'lPAM' : 'PAM'})
+r = rightSide.rename(columns = {'right' : 'pos', 'rPAM' : 'PAM'})
+
+l.append(r)
