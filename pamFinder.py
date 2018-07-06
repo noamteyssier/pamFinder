@@ -18,16 +18,25 @@ class Region:
         self.offsetEnd = self.end + self.offset
 
         self.posInfo = {'l' : dict(), 'r' : dict() } # {side : CC/GG : index}
-        self.leftPositions = self.find_PAM(self.offsetSequence(l = True), 'l')
-        self.rightPositions = self.find_PAM(self.offsetSequence(r = True), 'r')
+
+        # find all PAM sites for left and right sides
+        self.find_PAM(self.offsetSequence(l = True), 'l')
+        self.find_PAM(self.offsetSequence(r = True), 'r')
 
         # combinations of left and right gRNA positions where size < 300
-        self.intervals = None
+        self.intervals = pd.DataFrame()
+        self.leftGuides = pd.DataFrame()      # left guide positions that pass filtering
+        self.rightGuides = pd.DataFrame()     # right guide positions that pass filtering
+
 
         self.find_intervals()
-        self.pull_sequences()
-        sys.exit()
+        if self.intervals.empty == False: # confirm that intervals were found
+            self.find_bounds()
 
+            print self.leftGuides
+            print self.rightGuides
+
+        # sys.exit()
 
         Region.regions.append(self)
     def add_position(self, side, pam, index):
@@ -65,10 +74,8 @@ class Region:
                     else:
                         index = i + 4
                     self.add_position(side, twoMer, index)
-                    ggcc.append(index)
             except IndexError:
                 break
-        return ggcc
     def find_intervals(self):
         """find intervals with a size less than 300"""
 
@@ -95,13 +102,41 @@ class Region:
             ## calculate size of interval
             combinations['size'] = combinations['right'] - combinations['left']
 
-            ## return intervals less than 300
+            ## keep intervals less than 300
             self.intervals = combinations.loc[combinations['size'] <= 300].reset_index(drop=True)
+
+            # show unique left and right guide sites
+            self.leftGuides = self.intervals[['left','lPAM']].drop_duplicates().reset_index(drop=True)
+            self.rightGuides = self.intervals[['right', 'rPAM']].drop_duplicates().reset_index(drop=True)
+
         else:
-            self.intervals = None
-    def pull_sequences(self):
-        print self.intervals
-        pass
+            # no combinations == emtpy dataframe
+            return 0
+    def boundFinder(self, axis):
+        """given an axis of [position, pam] return boundaries of that cut"""
+        pos, pam = axis
+        if pam == 'GG':
+            start = pos - 13
+            end = pos + 7
+        else:
+            start = pos - 7
+            end = pos + 13
+        return [start, end]
+    def find_bounds(self):
+        """create dataframes of boundaries of gRNA"""
+
+        # find boundaries, expand columns, rename to make sense
+        leftBounds = self.leftGuides.apply(self.boundFinder, axis = 1, result_type = 'expand').rename(columns = {0 : 'leftStart', 1 : 'leftEnd'})
+        rightBounds = self.rightGuides.apply(self.boundFinder, axis = 1, result_type = 'expand').rename(columns = {0 : 'rightStart', 1 : 'rightEnd'})
+
+        # join original dataframes with bounds
+        try:
+            self.leftGuides = self.leftGuides.join(leftBounds, how = 'outer')
+        except ValueError:
+            print self.intervals
+            print leftBounds
+        self.rightGuides = self.rightGuides.join(rightBounds, how = 'outer')
+
 
 
 
@@ -141,6 +176,7 @@ def make_chrom_dict(genome_fn):
         chromDict[currentChrom].append(line)
     return join_lines(chromDict)
 
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("-i", '--input', help="input genome", required=True)
@@ -149,6 +185,8 @@ def main():
 
     Region.chromDict = make_chrom_dict(args.input)
     [Region(b[0], b[1], b[2]) for b in parse_bed(args.bed)]
+
+
 
 
 '''
