@@ -36,8 +36,6 @@ class Region:
             self.find_bounds()
             self.pull_gRNA()
 
-        # sys.exit()
-
         Region.regions.append(self)
     def add_position(self, side, pam, index):
         if pam not in self.posInfo[side]:
@@ -116,11 +114,11 @@ class Region:
         """given an axis of [position, pam] return boundaries of that cut"""
         pos, pam = axis
         if pam == 'GG':
-            start = pos - 13
-            end = pos + 7
+            start = pos - 14
+            end = pos + 6
         else:
-            start = pos - 7
-            end = pos + 13
+            start = pos - 8
+            end = pos + 12
         return [start, end]
     def find_bounds(self):
         """create dataframes of boundaries of gRNA"""
@@ -144,10 +142,9 @@ class Region:
         # create larger guides dataframe
         self.Guides = l.append(r)
     def pull_gRNA(self):
+        """add gRNA sequence to dataframe"""
         chrom = Region.chromDict[self.chrom]
         self.Guides['gRNA'] = self.Guides.apply(lambda x : chrom[x[2] : x[3]], axis = 1)
-        print self.Guides
-
 
 
 
