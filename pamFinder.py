@@ -110,7 +110,7 @@ class Region:
             self.rightGuides = self.intervals[['right', 'rPAM']].drop_duplicates().reset_index(drop=True)
 
         else:
-            # no combinations == emtpy dataframe
+            # no combinations == empty dataframe
             return 0
     def boundFinder(self, axis):
         """given an axis of [position, pam] return boundaries of that cut"""
@@ -143,13 +143,10 @@ class Region:
 
         # create larger guides dataframe
         self.Guides = l.append(r)
-
-
-
-
     def pull_gRNA(self):
+        chrom = Region.chromDict[self.chrom]
+        self.Guides['gRNA'] = self.Guides.apply(lambda x : chrom[x[2] : x[3]], axis = 1)
         print self.Guides
-
 
 
 
