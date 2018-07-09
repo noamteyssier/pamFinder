@@ -7,6 +7,7 @@ from itertools import product
 class Region:
     regions = list()
     chromDict = dict()
+    snps = dict()   # empty if no snps args; else {chrom:[pos_1...pos_n]}
     full_genome = str()
     def __init__(self, chrom, start, end, label):
         self.chrom = chrom
@@ -159,8 +160,11 @@ class Region:
         self.Guides['GC'] = self.Guides.apply(self.GC, axis = 1)
         # number of times a PAM sequence is found within the gRNA
         self.Guides['n_PAMs'] = self.Guides.apply(self.num_subPAM, axis = 1)
+        # number of SNPs found in the gRNA location
+        self.Guides['n_SNPs'] = self.Guides.apply(self.num_SNPs, axis=1)
+
         # number of times the gRNA appears in the genome
-        self.Guides['g_Freq'] = self.Guides.apply(self.genomicFrequency, axis = 1)
+        # self.Guides['g_Freq'] = self.Guides.apply(self.genomicFrequency, axis = 1)
 
         print self.Guides
 
@@ -181,6 +185,10 @@ class Region:
             except IndexError:
                 break
         return num_subPAM
+    def num_SNPs(self, axis):
+        """check snps in chrom for intersection with gRNA region"""
+        return sum((int(s) >= axis['start']) & (int(s) <= axis['end'])
+            for s in Region.snps[self.chrom])
     def genomicFrequency(self, axis):
         """the number of times the gRNA appears in the genome"""
         g = axis['gRNA']
@@ -194,6 +202,18 @@ class Region:
 
 
 
+def make_snpDict(snp_fn):
+    """read through snp file and parse into dictionary"""
+    snpDict = dict()
+    with open(snp_fn) as f:
+        while True:
+            try:
+                chrom,pos = next(f).strip('\n').split('\t')
+                if chrom not in snpDict:
+                    snpDict[chrom] = list()
+                snpDict[chrom].append(pos)
+            except StopIteration:
+                return snpDict
 def parse_fasta(genome):
     """parse each line of file"""
     with open(genome) as f:
@@ -243,12 +263,16 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("-i", '--input', help="input genome", required=True)
     p.add_argument('-b', '--bed', help='input bed file (chrom, start, end, optional_label)', required=True)
+    p.add_argument('-s', '--snps', help='SNP file in format (chrom, pos)', required=False)
     args = p.parse_args()
 
     Region.chromDict = make_chrom_dict(args.input)
     Region.full_genome = ' '.join([Region.chromDict[c] for c in Region.chromDict])
+    if args.snps:
+        Region.snps = make_snpDict(args.snps)
 
     [Region(b[0], b[1], b[2], b[3]) for b in parse_bed(args.bed)]
+
 
 
 
@@ -258,6 +282,7 @@ statistics to gather :
 - number of nGG/nCC in gRNA
 - GC content of gRNA
 - number of times gRNA found in Genome
+- number of SNPs found in gRNA
 '''
 
 
