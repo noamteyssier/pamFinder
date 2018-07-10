@@ -276,13 +276,16 @@ def main():
 
 
 
-
 '''
 statistics to gather :
 - number of nGG/nCC in gRNA
 - GC content of gRNA
 - number of times gRNA found in Genome
 - number of SNPs found in gRNA
+- offtargets (to human genome)
+- length of longest homopolymer
+- length of longest dinucleotide repeats
+- length of longest trinucleotide repeats
 '''
 
 
