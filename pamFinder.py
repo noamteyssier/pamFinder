@@ -195,13 +195,6 @@ class Region:
         return Region.full_genome.count(g)
     def revGenomicFrequency(self, axis):
         g = axis['gRNA']
-
-
-
-
-
-
-
 def make_snpDict(snp_fn):
     """read through snp file and parse into dictionary"""
     snpDict = dict()
@@ -273,6 +266,7 @@ def main():
 
     [Region(b[0], b[1], b[2], b[3]) for b in parse_bed(args.bed)]
 
+    
 
 
 
